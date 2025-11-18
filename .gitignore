@@ -1,0 +1,28 @@
+# --- FILE KONFIGURASI SENSITIF (JANGAN DI-PUSH) ---
+# Sesuaikan dengan nama file config fonnte kamu
+config_fonnte.php
+fonnte_config.php
+kirim_fonnte.php
+api.php
+
+# Koneksi Database (PENTING!)
+db.php
+koneksi.php
+config.php
+
+# Environment variables
+.env
+
+# --- FOLDER UPLOAD USER (DATA DINAMIS) ---
+# Kita tidak ingin file skripsi/foto dummy memenuhi repo
+uploads/
+mahasiswa/uploads/
+dosen/uploads/
+
+# --- FILE SISTEM & EDITOR ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
+vendor/
