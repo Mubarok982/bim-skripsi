@@ -1,52 +1,123 @@
 <?php
 session_start();
-include "db.php";
+// Sesuaikan path db.php (naik satu folder ke admin)
+include "../admin/db.php";
 
-$npm = $_SESSION['npm'] ?? '';
-if (!$npm) {
-    header("Location: login_mahasiswa.php");
+// Cek Login
+if (!isset($_SESSION['npm'])) {
+    header("Location: ../auth/login.php");
     exit();
 }
 
-$stmt = $conn->prepare("SELECT * FROM biodata_mahasiswa WHERE npm = ?");
-$stmt->bind_param("s", $npm);
+// Session menyimpan username (yang biasanya NPM)
+$session_user = $_SESSION['npm'];
+
+// --- 1. AMBIL DATA LENGKAP (SELECT) ---
+// Kita cari ID dulu berdasarkan username login, lalu JOIN ke data_mahasiswa dan skripsi
+$query = "SELECT 
+            m.id AS id_mhs,
+            m.nama,
+            m.foto,
+            dm.npm,          -- Ambil NPM dari tabel data_mahasiswa
+            dm.prodi,
+            dm.telepon AS no_hp,
+            s.judul AS judul_skripsi,
+            s.pembimbing1 AS id_dosen1,
+            s.pembimbing2 AS id_dosen2
+          FROM mstr_akun m
+          JOIN data_mahasiswa dm ON m.id = dm.id
+          LEFT JOIN skripsi s ON m.id = s.id_mahasiswa
+          WHERE m.username = ?";
+
+$stmt = $conn->prepare($query);
+$stmt->bind_param("s", $session_user);
 $stmt->execute();
 $result = $stmt->get_result();
 $data = $result->fetch_assoc();
 
+// Jika data tidak ditemukan, berarti akun ada tapi biodata belum diisi di data_mahasiswa
+if (!$data) {
+    echo "<div class='alert alert-danger m-4'>
+            Data biodata Anda tidak ditemukan di tabel data_mahasiswa.<br>
+            Mohon hubungi Admin untuk sinkronisasi data akun.
+          </div>";
+    exit();
+}
+
+$id_mhs = $data['id_mhs']; // Kunci utama untuk update
+
+// Ambil List Dosen untuk Dropdown
 $dosen = [];
-$resultDosen = $conn->query("SELECT * FROM biodata_dosen");
+$resultDosen = $conn->query("SELECT id, nama FROM mstr_akun WHERE role='dosen' ORDER BY nama ASC");
 while ($row = $resultDosen->fetch_assoc()) {
     $dosen[] = $row;
 }
 
+// --- 2. PROSES UPDATE JIKA FORM DISUBMIT ---
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $nama         = $_POST['nama'];
-    $prodi        = $_POST['prodi'];
-    $no_hp        = $_POST['no_hp'];
-    $judul        = $_POST['judul_skripsi'];
-    $pembimbing1  = $_POST['nip_pembimbing1'];
-    $pembimbing2  = $_POST['nip_pembimbing2'];
-    $fotoBaru     = $_FILES['foto']['name'];
     
-     if ($pembimbing1 === $pembimbing2) {
+    $nama     = mysqli_real_escape_string($conn, $_POST['nama']);
+    $prodi    = mysqli_real_escape_string($conn, $_POST['prodi']);
+    $no_hp    = mysqli_real_escape_string($conn, $_POST['no_hp']);
+    $judul    = mysqli_real_escape_string($conn, $_POST['judul_skripsi']);
+    
+    // Handle Dosen (Set NULL jika tidak dipilih)
+    $p1       = !empty($_POST['id_dosen1']) ? "'" . $_POST['id_dosen1'] . "'" : "NULL";
+    $p2       = !empty($_POST['id_dosen2']) ? "'" . $_POST['id_dosen2'] . "'" : "NULL";
+
+    // Validasi: Dosen 1 dan 2 tidak boleh sama
+    if (!empty($_POST['id_dosen1']) && $_POST['id_dosen1'] === $_POST['id_dosen2']) {
         echo "<script>alert('Dosen Pembimbing 1 dan 2 tidak boleh sama!'); window.history.back();</script>";
         exit();
     }
 
-    if ($fotoBaru) {
+    // --- HANDLE UPLOAD FOTO ---
+    $namafile = $data['foto']; // Default pakai foto lama
+    if (!empty($_FILES['foto']['name'])) {
+        $fotoBaru = $_FILES['foto']['name'];
         $ext = pathinfo($fotoBaru, PATHINFO_EXTENSION);
-        $namafile = $npm . '_' . time() . '.' . $ext;
-        move_uploaded_file($_FILES['foto']['tmp_name'], "uploads/" . $namafile);
-    } else {
-        $namafile = $data['foto'];
+        $allowed = ['jpg', 'jpeg', 'png'];
+        
+        if (in_array(strtolower($ext), $allowed)) {
+            // Nama file unik: npm_waktu.ext
+            $namafile = $data['npm'] . '_' . time() . '.' . $ext;
+            $tmp_name = $_FILES['foto']['tmp_name'];
+            move_uploaded_file($tmp_name, "../uploads/" . $namafile);
+        } else {
+            echo "<script>alert('Format foto harus JPG/PNG!'); window.history.back();</script>";
+            exit();
+        }
     }
 
-    $stmt = $conn->prepare("UPDATE biodata_mahasiswa SET nama=?, prodi=?, no_hp=?, judul_skripsi=?, nip_pembimbing1=?, nip_pembimbing2=?, foto=? WHERE npm=?");
-    $stmt->bind_param("ssssssss", $nama, $prodi, $no_hp, $judul, $pembimbing1, $pembimbing2, $namafile, $npm);
-    $stmt->execute();
+    // --- UPDATE KE 3 TABEL BERDASARKAN ID_MAHASISWA ---
+    
+    // 1. Update mstr_akun (Nama & Foto)
+    $q1 = "UPDATE mstr_akun SET nama='$nama', foto='$namafile' WHERE id='$id_mhs'";
+    mysqli_query($conn, $q1);
 
-    header("Location: home_mahasiswa.php");
+    // 2. Update data_mahasiswa (Prodi & HP)
+    // Note: NPM biasanya tidak diedit mahasiswa sendiri, jadi tidak diupdate di sini
+    $q2 = "UPDATE data_mahasiswa SET prodi='$prodi', telepon='$no_hp' WHERE id='$id_mhs'";
+    mysqli_query($conn, $q2);
+
+    // 3. Update/Insert Skripsi
+    $cek_skripsi = mysqli_query($conn, "SELECT id FROM skripsi WHERE id_mahasiswa = '$id_mhs'");
+    
+    if (mysqli_num_rows($cek_skripsi) > 0) {
+        // Update jika sudah ada
+        $q3 = "UPDATE skripsi SET judul='$judul', pembimbing1=$p1, pembimbing2=$p2 WHERE id_mahasiswa='$id_mhs'";
+        mysqli_query($conn, $q3);
+    } else {
+        // Insert jika belum ada
+        if (!empty($judul)) {
+            $q3 = "INSERT INTO skripsi (id_mahasiswa, judul, pembimbing1, pembimbing2, tgl_pengajuan_judul, tema, skema) 
+                   VALUES ('$id_mhs', '$judul', $p1, $p2, CURDATE(), 'Software Engineering', 'Reguler')";
+            mysqli_query($conn, $q3);
+        }
+    }
+
+    // Redirect Sukses
+    echo "<script>alert('Data Berhasil Diperbarui!'); window.location='home_mahasiswa.php';</script>";
     exit();
 }
 ?>
@@ -56,83 +127,120 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 <head>
     <meta charset="UTF-8">
     <title>Update Biodata Mahasiswa</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style2.css">
+    <link rel="stylesheet" href="../admin/ccsprogres.css"> 
+    <style>
+        body { background-color: #f4f6f9; }
+        .card-form { border-radius: 12px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    </style>
 </head>
-<body style="background-image: url('1.jpg'); background-size: cover; background-position: center;">
+<body>
+
 <div class="container py-5">
-    <h2 class="mb-4 text-center text-white">Update Biodata Mahasiswa</h2>
-    <div class="card p-4">
-        <form method="POST" enctype="multipart/form-data">
-            <div class="row g-4">
-                <div class="col-md-4 text-center">
-                    <?php if (!empty($data['foto']) && file_exists("uploads/" . $data['foto'])): ?>
-                        <img src="uploads/<?= $data['foto'] ?>" class="rounded-circle mb-3" style="width:100px;height:100px;object-fit:cover;border:3px solid #007bff;">
-                    <?php else: ?>
-                        <div class="mb-3" style="font-size:80px;">👤</div>
-                    <?php endif; ?>
-                    <div class="mb-3">
-                        <label class="form-label">Ganti Foto:</label>
-                        <input class="form-control" type="file" name="foto">
-                    </div>
-                    <p><strong>NPM:</strong> <?= htmlspecialchars($npm) ?></p>
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card card-form">
+                <div class="card-header bg-white py-3 border-bottom-0">
+                    <h4 class="mb-0 text-primary fw-bold">Update Biodata Saya</h4>
                 </div>
+                <div class="card-body p-4">
+                    
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="row">
+                            
+                            <div class="col-md-4 text-center border-end pe-md-4">
+                                <div class="mb-3 position-relative">
+                                    <?php if (!empty($data['foto']) && file_exists("../uploads/" . $data['foto'])): ?>
+                                        <img src="../uploads/<?= $data['foto'] ?>" class="rounded-circle img-thumbnail shadow-sm" style="width:160px; height:160px; object-fit:cover;">
+                                    <?php else: ?>
+                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto shadow-sm" style="width:160px; height:160px; font-size:60px; color:#adb5bd;">👤</div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <h5 class="mb-0 fw-bold"><?= htmlspecialchars($data['npm']) ?></h5>
+                                <p class="text-muted small mb-4">Mahasiswa</p>
 
-                <div class="col-md-8">
-                    <input type="hidden" name="npm" value="<?= htmlspecialchars($npm) ?>">
+                                <div class="text-start">
+                                    <label class="form-label small fw-bold text-secondary">Ganti Foto Profil</label>
+                                    <input class="form-control form-control-sm" type="file" name="foto" accept=".jpg, .jpeg, .png">
+                                    <div class="form-text text-muted" style="font-size: 11px;">Format: JPG/PNG. Max 2MB.</div>
+                                </div>
+                            </div>
 
-                    <div class="mb-3">
-                        <label class="form-label"><strong>Nama</strong></label>
-                        <input type="text" name="nama" class="form-control" value="<?= htmlspecialchars($data['nama']) ?>" required>
-                    </div>
+                            <div class="col-md-8 ps-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Nama Lengkap</label>
+                                    <input type="text" name="nama" class="form-control" value="<?= htmlspecialchars($data['nama']) ?>" required>
+                                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label"><strong>No. HP</strong></label>
-                        <input type="text" name="no_hp" class="form-control" value="<?= htmlspecialchars($data['no_hp']) ?>" required>
-                    </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold">Program Studi</label>
+                                        <select name="prodi" class="form-select" required>
+                                            <option value="">-- Pilih Prodi --</option>
+                                            <?php 
+                                                $opsi_prodi = ['Teknik Informatika S1', 'Teknologi Informasi D3', 'Teknik Industri S1', 'Teknik Mesin S1', 'Mesin Otomotif D3'];
+                                                foreach ($opsi_prodi as $op) {
+                                                    $selected = ($data['prodi'] == $op) ? 'selected' : '';
+                                                    echo "<option value='$op' $selected>$op</option>";
+                                                }
+                                            ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold">Nomor HP (WhatsApp)</label>
+                                        <input type="text" name="no_hp" class="form-control" value="<?= htmlspecialchars($data['no_hp']) ?>">
+                                    </div>
+                                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label"><strong>Prodi</strong></label>
-                        <input type="text" name="prodi" class="form-control" value="<?= htmlspecialchars($data['prodi']) ?>" required>
-                    </div>
+                                <hr class="my-4 text-muted opacity-25">
+                                <h6 class="text-primary fw-bold mb-3">Data Skripsi & Pembimbing</h6>
 
-                    <div class="mb-3">
-                        <label class="form-label"><strong>Judul Skripsi</strong></label>
-                        <textarea name="judul_skripsi" class="form-control" rows="3" required><?= htmlspecialchars($data['judul_skripsi']) ?></textarea>
-                    </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Judul Skripsi</label>
+                                    <textarea name="judul_skripsi" class="form-control" rows="3" placeholder="Belum mengajukan judul..."><?= htmlspecialchars($data['judul_skripsi'] ?? '') ?></textarea>
+                                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label"><strong>Dosen Pembimbing 1</strong></label>
-                        <select name="nip_pembimbing1" class="form-select" required>
-                            <option value="">Pilih Dosen</option>
-                            <?php foreach ($dosen as $d): ?>
-                                <option value="<?= $d['nip'] ?>" <?= $data['nip_pembimbing1'] == $d['nip'] ? 'selected' : '' ?>>
-                                    <?= $d['nama'] ?> (<?= $d['nip'] ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold">Pembimbing 1</label>
+                                        <select name="id_dosen1" class="form-select">
+                                            <option value="">-- Pilih Dosen --</option>
+                                            <?php foreach ($dosen as $d): ?>
+                                                <option value="<?= $d['id'] ?>" <?= $data['id_dosen1'] == $d['id'] ? 'selected' : '' ?>>
+                                                    <?= $d['nama'] ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label fw-bold">Pembimbing 2</label>
+                                        <select name="id_dosen2" class="form-select">
+                                            <option value="">-- Pilih Dosen --</option>
+                                            <?php foreach ($dosen as $d): ?>
+                                                <option value="<?= $d['id'] ?>" <?= $data['id_dosen2'] == $d['id'] ? 'selected' : '' ?>>
+                                                    <?= $d['nama'] ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
 
-                    <div class="mb-3">
-                        <label class="form-label"><strong>Dosen Pembimbing 2</strong></label>
-                        <select name="nip_pembimbing2" class="form-select" required>
-                            <option value="">Pilih Dosen</option>
-                            <?php foreach ($dosen as $d): ?>
-                                <option value="<?= $d['nip'] ?>" <?= $data['nip_pembimbing2'] == $d['nip'] ? 'selected' : '' ?>>
-                                    <?= $d['nama'] ?> (<?= $d['nip'] ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+                                <div class="d-flex justify-content-end gap-2 mt-4">
+                                    <a href="home_mahasiswa.php" class="btn btn-secondary px-4">Batal</a>
+                                    <button type="submit" class="btn btn-primary px-4">Simpan Perubahan</button>
+                                </div>
+                            </div>
 
-                    <div class="text-end">
-                        <a href="home_mahasiswa.php" class="btn btn-secondary me-2">Batal</a>
-                        <button type="submit" class="btn btn-success">Update</button>
-                    </div>
+                        </div>
+                    </form>
+
                 </div>
             </div>
-        </form>
+        </div>
     </div>
 </div>
+
 </body>
 </html>

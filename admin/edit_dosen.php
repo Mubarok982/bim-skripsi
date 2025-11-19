@@ -50,12 +50,23 @@ if (!$dosen) {
 <!-- LAYOUT -->
 <div class="container-fluid">
   <div class="sidebar">
-    <h4 class="text-center">Admin Panel</h4>
+    <h6 class="text-uppercase text-secondary ms-3 mb-3" style="font-size: 12px;">Menu Utama</h6>
     <a href="home_admin.php">Dashboard</a>
+    <a href="laporan_sidang.php">Laporan Sidang</a>
     <a href="data_mahasiswa.php">Data Mahasiswa</a>
-    <a href="data_dosen.php" class="active">Data Dosen</a>
-    <a href="logout.php">Logout</a>
-  </div>
+    <a href="data_dosen.php">Data Dosen</a>
+    
+    <h6 class="text-uppercase text-secondary ms-3 mb-3 mt-4" style="font-size: 12px;">Manajemen Akun</h6>
+    <a href="akun_mahasiswa.php">Akun Mahasiswa</a>
+    <a href="akun_dosen.php" class="active" style="background-color: #0d6efd;">Akun Dosen</a>
+    <a href="mahasiswa_skripsi.php">Data Skripsi</a>
+    
+    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a> 
+    
+    <div class="text-center mt-5 text-muted" style="font-size: 11px;">
+      &copy; 2025 UNIMMA
+    </div>
+</div>
 
   <div class="main-content">
     <div class="card-box text-start">

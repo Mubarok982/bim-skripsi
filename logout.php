@@ -1,20 +1,19 @@
 <?php
 session_start();
 
-// Default redirect
-$redirect = 'mahasiswa/login_mahasiswa.php';
-
-// Cek session siapa yang aktif
-if (isset($_SESSION['admin_username'])) {
-    $redirect = 'admin/login_admin.php';
-} elseif (isset($_SESSION['nip'])) {
-    $redirect = 'dosen/login_dosen.php';
-} elseif (isset($_SESSION['npm'])) {
-    $redirect = 'mahasiswa/login_mahasiswa.php';
-}
-
+// 1. Hapus Session
 session_unset();
 session_destroy();
 
-header("Location: $redirect");
-exit();
+// 2. Redirect Paksa Menggunakan JavaScript
+// (Cara ini membypass masalah header PHP)
+?>
+<!DOCTYPE html>
+<html>
+<body>
+    <script>
+        // Hapus history agar tidak bisa di-back
+        window.location.replace("login.php");
+    </script>
+</body>
+</html>
