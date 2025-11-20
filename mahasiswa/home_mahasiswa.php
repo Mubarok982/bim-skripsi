@@ -1,6 +1,11 @@
 <?php
 session_start();
+// Pastikan file db.php berisi koneksi ke database Anda ($conn)
 include "../admin/db.php"; 
+
+// --- 0. LOGIKA PENENTUAN HALAMAN AKTIF ---
+// Digunakan untuk memberikan class 'active' pada menu sidebar
+$current_page = basename($_SERVER['PHP_SELF']);
 
 // Cek Login
 if (!isset($_SESSION['npm'])) {
@@ -9,8 +14,9 @@ if (!isset($_SESSION['npm'])) {
 }
 
 $username_login = $_SESSION['npm'];
+$mahasiswa_id = $_SESSION['id_akun']; // Asumsi ID akun disimpan di sesi
 
-// --- 1. AMBIL DATA MAHASISWA ---
+// --- 1. AMBIL DATA MAHASISWA & SKRIPSI ---
 $sql = "SELECT 
             m.nama, 
             m.foto,
@@ -40,14 +46,13 @@ if (!$data) {
 
 $npm_fix = $data['npm_real']; 
 
-// --- 2. HITUNG PROGRES (LOGIKA BARU YANG BENAR) ---
+// --- 2. HITUNG PROGRES (LOGIKA PENGHITUNGAN SAMA SEPERTI KODE ASLI ANDA) ---
 $total_skor_semua_bab = 0;
-$detail_bab = []; // Array untuk menyimpan progres per bab
+$detail_bab = []; 
 
 // Kita Loop Bab 1 sampai 5
 for ($i = 1; $i <= 5; $i++) {
     // Ambil status ACC terakhir untuk bab ini
-    // Kita gunakan nilai_dosen (ACC/Revisi) sebagai acuan utama biar akurat
     $q_cek = mysqli_query($conn, "SELECT nilai_dosen1, nilai_dosen2 FROM progres_skripsi WHERE npm='$npm_fix' AND bab='$i' ORDER BY created_at DESC LIMIT 1");
     $d_cek = mysqli_fetch_assoc($q_cek);
 
@@ -55,18 +60,15 @@ for ($i = 1; $i <= 5; $i++) {
     $p1 = (isset($d_cek['nilai_dosen1']) && $d_cek['nilai_dosen1'] == 'ACC') ? 50 : 0;
     $p2 = (isset($d_cek['nilai_dosen2']) && $d_cek['nilai_dosen2'] == 'ACC') ? 50 : 0;
     
-    $skor_bab = $p1 + $p2; // Hasilnya 0, 50, atau 100
+    $skor_bab = $p1 + $p2; 
     
-    // Simpan ke array untuk ditampilkan di kotak bawah
     $detail_bab[$i] = $skor_bab;
 
-    // Tambahkan ke total skor
     $total_skor_semua_bab += $skor_bab;
 }
 
 // Hitung Persentase Total Skripsi
-// Rumus: Total Skor Semua Bab / 5 (Karena ada 5 Bab)
-// Contoh: Bab 1 (100) + Bab 2 (100) = 200. 200 / 5 = 40% Total Progres.
+// (Total Skor Semua Bab / 5 Bab)
 $persentase_akhir = round($total_skor_semua_bab / 5);
 
 ?>
@@ -87,7 +89,12 @@ $persentase_akhir = round($total_skor_semua_bab / 5);
         .sidebar { position: fixed; top: 70px; left: 0; width: 250px; height: calc(100vh - 70px); background-color: #343a40; color: white; overflow-y: auto; padding-top: 20px; z-index: 1040; }
         .sidebar a { color: #cfd8dc; text-decoration: none; display: block; padding: 12px 25px; border-radius: 0 25px 25px 0; margin-bottom: 5px; transition: all 0.3s; border-left: 4px solid transparent; }
         .sidebar a:hover { background-color: #495057; color: #fff; }
+        /* Style untuk Menu Aktif */
         .sidebar a.active { background-color: #0d6efd; color: #ffffff; font-weight: bold; border-left: 4px solid #ffc107; padding-left: 30px; }
+        
+        /* Style untuk Sub-Heading (Kelola TA, Persyaratan, Pengaturan) */
+        .sidebar h6 { color: #cfd8dc; opacity: 0.7; padding-left: 25px; margin-bottom: 5px !important; }
+
         .main-content { margin-top: 70px; margin-left: 250px; padding: 30px; width: auto; }
         .biodata-box { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
         .foto-profil { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; border: 1px solid #ddd; }
@@ -109,10 +116,10 @@ $persentase_akhir = round($total_skor_semua_bab / 5);
             <span style="font-weight: 600; font-size: 14px;"><?= htmlspecialchars($data['nama']) ?></span>
         </div>
         <div style="width: 40px; height: 40px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden;">
-             <?php if (!empty($data['foto']) && file_exists("../uploads/" . $data['foto'])): ?>
-                <img src="../uploads/<?= htmlspecialchars($data['foto']) ?>" style="width:100%; height:100%; object-fit:cover;">
+              <?php if (!empty($data['foto']) && file_exists("../uploads/" . $data['foto'])): ?>
+                 <img src="../uploads/<?= htmlspecialchars($data['foto']) ?>" style="width:100%; height:100%; object-fit:cover;">
             <?php else: ?>
-                👤
+                 👤
             <?php endif; ?>
         </div>
     </div>
@@ -120,12 +127,42 @@ $persentase_akhir = round($total_skor_semua_bab / 5);
 
 <div class="sidebar">
     <h4 class="text-center mb-4">Panel Mahasiswa</h4>
-    <a href="home_mahasiswa.php" class="active">Dashboard</a>
-    <a href="progres_skripsi.php">Upload Progres</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a>
+    
+    <a href="home_mahasiswa.php" class="<?= ($current_page == 'home_mahasiswa.php' || $current_page == 'index.php') ? 'active' : '' ?>">
+        Dashboard
+    </a>
+    
+    <a href="progres_skripsi.php" class="<?= ($current_page == 'progres_skripsi.php') ? 'active' : '' ?>">
+        Upload Progres
+    </a>
+    
+    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Kelola Tugas Akhir</h6>
+    <a href="skripsi.php" class="<?= ($current_page == 'skripsi.php') ? 'active' : '' ?>">
+        Pengajuan Tugas Akhir
+    </a>
+    <a href="ujian.php" class="<?= ($current_page == 'ujian.php') ? 'active' : '' ?>">
+        Ujian Tugas Akhir
+    </a>
+
+    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Persyaratan</h6>
+    <a href="syarat_sempro.php" class="<?= ($current_page == 'syarat_sempro.php') ? 'active' : '' ?>">
+        Syarat Proposal
+    </a>
+    <a href="syarat_sidang.php" class="<?= ($current_page == 'syarat_sidang.php') ? 'active' : '' ?>">
+        Syarat Pendadaran
+    </a>
+
+    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Pengaturan</h6>
+    <a href="profile.php" class="<?= ($current_page == 'profile.php') ? 'active' : '' ?>">
+        Profile
+    </a>
+
+    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">
+        Logout
+    </a>
+    
     <div class="text-center mt-5" style="font-size: 12px; color: #aaa;">&copy; 2025 UNIMMA</div>
 </div>
-
 <div class="main-content">
     
     <div class="card p-4 shadow-sm border-0 mb-4" style="border-radius: 12px;">
@@ -138,7 +175,7 @@ $persentase_akhir = round($total_skor_semua_bab / 5);
                     <div class="foto-profil d-flex align-items-center justify-content-center bg-light text-secondary" style="font-size: 40px;">👤</div>
                 <?php endif; ?>
                 <div class="mt-2">
-                    <a href="update_biodata_mahasiswa.php" class="btn btn-sm btn-outline-primary w-100">Edit Profil</a>
+                    <a href="profile.php" class="btn btn-sm btn-outline-primary w-100">Edit Profil</a>
                 </div>
             </div>
 
@@ -183,10 +220,8 @@ $persentase_akhir = round($total_skor_semua_bab / 5);
         <h6 class="text-uppercase text-secondary mb-3" style="font-size: 12px; letter-spacing: 1px;">Rincian Per Bab</h6>
         <div class="row g-3">
             <?php for ($bab = 1; $bab <= 5; $bab++): 
-                // Ambil nilai yang sudah dihitung di atas
                 $p_bab = $detail_bab[$bab] ?? 0;
                 
-                // Tentukan warna bar
                 $bg_color = "bg-info";
                 if($p_bab == 100) $bg_color = "bg-success";
                 elseif($p_bab == 50) $bg_color = "bg-warning";
