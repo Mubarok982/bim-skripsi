@@ -1,6 +1,7 @@
 <?php
 session_start();
 include "../admin/db.php"; 
+include "../templates/sidebar_mahasiswa.php";
 
 // --- 0. LOGIKA PENENTUAN HALAMAN AKTIF ---
 $current_page = basename($_SERVER['PHP_SELF']);
@@ -148,27 +149,6 @@ if (isset($_GET['msg'])) {
     </div>
 </div>
 
-<div class="sidebar">
-    <h4 class="text-center mb-4">Panel Mahasiswa</h4>
-    
-    <a href="home_mahasiswa.php" class="<?= ($current_page == 'home_mahasiswa.php') ? 'active' : '' ?>">Dashboard</a>
-    <a href="progres_skripsi.php" class="<?= ($current_page == 'progres_skripsi.php') ? 'active' : '' ?>">Upload Progres</a>
-    
-    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Kelola Tugas Akhir</h6>
-    <a href="skripsi.php" class="<?= ($current_page == 'skripsi.php') ? 'active' : '' ?>">Pengajuan Tugas Akhir</a>
-    <a href="ujian.php" class="<?= ($current_page == 'ujian.php') ? 'active' : '' ?>">Ujian Tugas Akhir</a>
-
-    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Persyaratan</h6>
-    <a href="syarat_sempro.php" class="<?= ($current_page == 'syarat_sempro.php') ? 'active' : '' ?>">Syarat Proposal</a>
-    <a href="syarat_sidang.php" class="<?= ($current_page == 'syarat_sidang.php') ? 'active' : '' ?>">Syarat Pendadaran</a>
-
-    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Pengaturan</h6>
-    <a href="profile.php" class="<?= ($current_page == 'profile.php') ? 'active' : '' ?>">Profile</a>
-
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a>
-    
-    <div class="text-center mt-5" style="font-size: 12px; color: #aaa;">&copy; 2025 UNIMMA</div>
-</div>
 <div class="main-content">
     <h2 class="mb-4">Edit Profil & Biodata</h2>
     
