@@ -1,8 +1,9 @@
 <?php
 session_start();
 include "../admin/db.php"; 
+include "../templates/sidebar_mahasiswa.php";
 
-// --- 0. LOGIKA PENENTUAN HALAMAN AKTIF ---
+// --- 0. LOGIKA SESSION & AMBIL DATA DASAR ---
 $current_page = basename($_SERVER['PHP_SELF']);
 
 if (!isset($_SESSION['npm'])) {
@@ -10,6 +11,16 @@ if (!isset($_SESSION['npm'])) {
     exit();
 }
 $username_login = $_SESSION['npm'];
+
+// --- Fungsi is_active untuk Sidebar ---
+if (!function_exists('is_active')) {
+    function is_active($target_page, $current_page) {
+        if (is_array($target_page)) {
+            return in_array($current_page, $target_page) ? 'active' : '';
+        }
+        return ($current_page === $target_page) ? 'active' : '';
+    }
+}
 
 // --- 1. AMBIL DATA MAHASISWA & SKRIPSI ID ---
 $sql_mahasiswa = "SELECT 
@@ -24,8 +35,15 @@ $stmt_mahasiswa->bind_param("s", $username_login);
 $stmt_mahasiswa->execute();
 $result_mahasiswa = $stmt_mahasiswa->get_result();
 $data_mahasiswa = $result_mahasiswa->fetch_assoc();
+
+if (!$data_mahasiswa) {
+    echo "<script>alert('Data biodata belum lengkap. Hubungi Admin.'); window.location='../auth/login.php?action=logout';</script>";
+    exit();
+}
+
 $mahasiswa_id = $data_mahasiswa['id']; 
 $prodi_mahasiswa = $data_mahasiswa['prodi'];
+$npm_fix = $data_mahasiswa['npm_real']; // Tambahkan NPM fix untuk upload file
 
 // Cek apakah mahasiswa sudah memiliki Judul Final (Skripsi)
 $sql_skripsi = "SELECT id, judul FROM skripsi WHERE id_mahasiswa = ?";
@@ -47,10 +65,9 @@ if (!$data_skripsi) {
 
 // --- 2. AMBIL JENIS UJIAN SEMPRO YANG RELEVAN ---
 $sempro_map = [
-    'Teknik Informatika S1' => 5, // Seminar Proposal Teknik Informatika 2025
-    'Teknologi Informasi D3' => 7, // Seminar Proposal Teknologi Informasi D3
-    'Teknik Industri S1' => 3,     // Seminar Proposal Teknik Industri
-    // ... tambahkan prodi lain jika perlu
+    'Teknik Informatika S1' => 5,
+    'Teknologi Informasi D3' => 7,
+    'Teknik Industri S1' => 3,
 ];
 $target_jenis_id = $sempro_map[$prodi_mahasiswa] ?? 0;
 
@@ -60,8 +77,17 @@ $stmt_jenis->bind_param("i", $target_jenis_id);
 $stmt_jenis->execute();
 $jenis_sempro = $stmt_jenis->get_result()->fetch_assoc();
 
+// Daftar kolom yang merupakan syarat file (sesuai tabel `syarat_sempro`)
+$file_requirements = [
+    'naskah' => 'Naskah Sempro',
+    'fotokopi_daftar_nilai' => 'Fotokopi Daftar Nilai',
+    'fotokopi_krs' => 'Fotokopi KRS',
+    'buku_kendali_bimbingan' => 'Buku Kendali Bimbingan',
+    'lembar_revisi_ba_dan_tanda_terima_laporan_kp' => 'Lembar Revisi KP',
+    'bukti_seminar_teman' => 'Bukti Seminar Teman'
+];
+
 // --- 3. CEK STATUS PENDAFTARAN SEMPRO SAAT INI ---
-// Cari data ujian skripsi yang terkait dengan Sempro (jenis id-nya)
 $sql_cek_sempro = "
 SELECT 
     us.id AS ujian_id, us.tanggal_daftar, us.status, us.persetujuan_pembimbing1, us.persetujuan_pembimbing2,
@@ -77,43 +103,47 @@ $stmt_cek->execute();
 $data_sempro_aktif = $stmt_cek->get_result()->fetch_assoc();
 
 $is_registered = $data_sempro_aktif !== null;
+$syarat_sempro_id = $data_sempro_aktif['id'] ?? 0;
 $status_ujian = $data_sempro_aktif['status'] ?? 'Belum Mendaftar';
 
-// Daftar kolom yang merupakan syarat file (sesuai tabel `syarat_sempro`)
-$file_requirements = [
-    'naskah' => 'Naskah Sempro',
-    'fotokopi_daftar_nilai' => 'Fotokopi Daftar Nilai',
-    'fotokopi_krs' => 'Fotokopi KRS',
-    'buku_kendali_bimbingan' => 'Buku Kendali Bimbingan',
-    'lembar_revisi_ba_dan_tanda_terima_laporan_kp' => 'Lembar Revisi KP',
-    'bukti_seminar_teman' => 'Bukti Seminar Teman'
-];
+// --- BARU: AMBIL STATUS VALIDASI DARI VALIDASI_SYARAT_SEMPRO ---
+$validation_status = [];
+if ($syarat_sempro_id > 0) {
+    $sql_validasi = "SELECT nama_field_syarat, status, catatan 
+                     FROM validasi_syarat_sempro 
+                     WHERE id_syarat_sempro = ?";
+    $stmt_validasi = $conn->prepare($sql_validasi);
+    $stmt_validasi->bind_param("i", $syarat_sempro_id);
+    $stmt_validasi->execute();
+    $result_validasi = $stmt_validasi->get_result();
+
+    while ($row = $result_validasi->fetch_assoc()) {
+        $validation_status[$row['nama_field_syarat']] = [
+            'status' => $row['status'],
+            'catatan' => $row['catatan']
+        ];
+    }
+}
 
 // --- 4. LOGIKA SUBMISSION FORM ---
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
+    $ujian_id_baru = $data_sempro_aktif['ujian_id'] ?? 0;
+    $syarat_sempro_id = $data_sempro_aktif['id'] ?? 0;
+
     if (!$is_registered) {
-        // Proses Pendaftaran Awal (Insert ke ujian_skripsi)
+        // Pendaftaran Awal (Insert ke ujian_skripsi dan syarat_sempro)
         $insert_ujian_sql = "INSERT INTO ujian_skripsi (id_skripsi, tanggal_daftar, id_jenis_ujian_skripsi) VALUES (?, NOW(), ?)";
         $stmt_insert_ujian = $conn->prepare($insert_ujian_sql);
         $stmt_insert_ujian->bind_param("ii", $skripsi_id, $target_jenis_id);
         $stmt_insert_ujian->execute();
         $ujian_id_baru = $conn->insert_id;
         
-        // Proses Insert Awal ke syarat_sempro
         $insert_syarat_sql = "INSERT INTO syarat_sempro (id_ujian_skripsi, status) VALUES (?, 0)";
         $stmt_insert_syarat = $conn->prepare($insert_syarat_sql);
         $stmt_insert_syarat->bind_param("i", $ujian_id_baru);
         $stmt_insert_syarat->execute();
         $syarat_sempro_id = $conn->insert_id;
-
-        $message_text = "Pendaftaran Sempro berhasil, silakan unggah dokumen.";
-        
-    } else {
-        // Jika sudah terdaftar, gunakan ID ujian yang sudah ada
-        $ujian_id_baru = $data_sempro_aktif['ujian_id'];
-        $syarat_sempro_id = $data_sempro_aktif['id'];
-        $message_text = "Dokumen berhasil diperbarui.";
-    }
+    } 
 
     // Proses Upload File & Update syarat_sempro
     $file_update_parts = [];
@@ -122,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
     foreach ($file_requirements as $db_col => $label) {
         if (isset($_FILES[$db_col]) && $_FILES[$db_col]['error'] == UPLOAD_ERR_OK) {
             $file_extension = pathinfo($_FILES[$db_col]['name'], PATHINFO_EXTENSION);
-            $file_name = "Sempro_{$data_mahasiswa['npm_real']}_{$db_col}_" . time() . ".{$file_extension}";
+            $file_name = "Sempro_{$npm_fix}_{$db_col}_" . time() . ".{$file_extension}";
             $target_dir = "../uploads/sempro/";
             if (!is_dir($target_dir)) { mkdir($target_dir, 0777, true); }
             $target_file = $target_dir . $file_name;
@@ -139,7 +169,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
         $file_update_values[] = $syarat_sempro_id;
         
         $stmt_update = $conn->prepare($update_sql);
-        // Tentukan tipe data binding (semuanya string 's' kecuali id yang integer 'i')
         $types = str_repeat('s', count($file_update_values) - 1) . 'i';
         
         $stmt_update->bind_param($types, ...$file_update_values);
@@ -148,7 +177,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
         header("Location: syarat_sempro.php?msg=" . urlencode("Dokumen Sempro berhasil diunggah/diperbarui."));
         exit();
     } elseif(!$is_registered) {
-         // Jika hanya mendaftar tanpa upload, refresh.
          header("Location: syarat_sempro.php?msg=" . urlencode("Pendaftaran Sempro berhasil, silakan unggah dokumen."));
          exit();
     }
@@ -196,27 +224,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
     </div>
 </div>
 
-<div class="sidebar">
-    <h4 class="text-center mb-4">Panel Mahasiswa</h4>
-    
-    <a href="home_mahasiswa.php" class="<?= ($current_page == 'home_mahasiswa.php') ? 'active' : '' ?>">Dashboard</a>
-    <a href="progres_skripsi.php" class="<?= ($current_page == 'progres_skripsi.php') ? 'active' : '' ?>">Upload Progres</a>
-    
-    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Kelola Tugas Akhir</h6>
-    <a href="skripsi.php" class="<?= ($current_page == 'skripsi.php') ? 'active' : '' ?>">Pengajuan Tugas Akhir</a>
-    <a href="ujian.php" class="<?= ($current_page == 'ujian.php') ? 'active' : '' ?>">Ujian Tugas Akhir</a>
-
-    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Persyaratan</h6>
-    <a href="syarat_sempro.php" class="<?= ($current_page == 'syarat_sempro.php') ? 'active' : '' ?>">Syarat Proposal</a>
-    <a href="syarat_sidang.php" class="<?= ($current_page == 'syarat_sidang.php') ? 'active' : '' ?>">Syarat Pendadaran</a>
-
-    <h6 class="text-uppercase mx-3 mt-4 mb-2" style="font-size: 10px;">Pengaturan</h6>
-    <a href="profile.php" class="<?= ($current_page == 'profile.php') ? 'active' : '' ?>">Profile</a>
-
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a>
-    
-    <div class="text-center mt-5" style="font-size: 12px; color: #aaa;">&copy; 2025 UNIMMA</div>
-</div>
 <div class="main-content">
     <h2 class="mb-4">Data Syarat Sempro</h2>
     
@@ -243,7 +250,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
                 </div>
             <?php else: ?>
                 <div class="alert alert-warning">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Anda belum terdaftar Sempro. Silakan unggah dokumen di bawah ini. Pendaftaran akan otomatis dilakukan saat Anda pertama kali mengunggah dokumen.
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>Anda belum terdaftar Sempro. Pendaftaran akan otomatis dilakukan saat Anda pertama kali mengunggah dokumen.
                 </div>
             <?php endif; ?>
 
@@ -256,16 +263,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
                 <div class="row g-3">
                     <?php foreach ($file_requirements as $db_col => $label): 
                         $current_file = $data_sempro_aktif[$db_col] ?? null;
+                        $status_data = $validation_status[$db_col] ?? ['status' => 'Belum Dicek', 'catatan' => ''];
+                        
+                        // Tentukan warna badge dan label
+                        $status = $status_data['status'];
+                        $catatan = $status_data['catatan'];
+                        $badge_class = 'bg-secondary';
+                        $status_label = 'Belum Dicek';
+
+                        if ($status == 'Diterima') {
+                            $badge_class = 'bg-success';
+                            $status_label = 'DITERIMA';
+                        } elseif ($status == 'Revisi') {
+                            $badge_class = 'bg-danger';
+                            $status_label = 'REVISI';
+                        } elseif ($status == 'Menunggu') {
+                            $badge_class = 'bg-warning text-dark';
+                            $status_label = 'MENUNGGU';
+                        }
                     ?>
                         <div class="col-md-6">
-                            <label for="<?= $db_col ?>" class="form-label">**<?= $label ?>** (.pdf / .jpg)</label>
+                            <label for="<?= $db_col ?>" class="form-label">
+                                **<?= $label ?>** <span class="badge <?= $badge_class ?>"><?= $status_label ?></span>
+                            </label>
                             <input class="form-control" type="file" id="<?= $db_col ?>" name="<?= $db_col ?>" accept=".pdf,.jpg,.jpeg">
                             <div class="form-text">
                                 <?php if ($current_file): ?>
                                     <span class="text-success">File saat ini tersedia.</span> 
-                                    <a href="../uploads/sempro/<?= htmlspecialchars($current_file) ?>" target="_blank">(Lihat)</a>
+                                    <a href="../uploads/sempro/<?= htmlspecialchars($current_file) ?>" target="_blank">(Lihat File)</a>
                                 <?php else: ?>
                                     <span class="text-danger">Wajib diunggah.</span>
+                                <?php endif; ?>
+                                
+                                <?php if ($catatan): ?>
+                                    <br><strong class="text-danger">Catatan Revisi:</strong> <?= htmlspecialchars($catatan) ?>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -282,10 +313,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $skripsi_id) {
 
             <?php if ($is_registered): ?>
             <div class="document-status-box">
-                <h6>Status Validasi Dokumen:</h6>
-                <p class="small text-muted m-0">
-                    *Karena kerumitan tabel `validasi_syarat_sempro`, status validasi detail (Diterima/Revisi) belum ditampilkan. 
-                    Status Ujian Sempro Anda akan berubah jika semua syarat sudah disetujui TU/Operator dan Pembimbing.
+                <h6>Keterangan Status:</h6>
+                <p class="small m-0">
+                    Status **DITERIMA** berarti dokumen sudah disetujui oleh Administrator/Tata Usaha dan tidak perlu diunggah ulang kecuali diminta.
                 </p>
             </div>
             <?php endif; ?>
