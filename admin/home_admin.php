@@ -8,26 +8,104 @@ if (!isset($_SESSION['admin_username'])) {
 }
 $nama_admin = $_SESSION['nama_admin'] ?? 'Admin';
 
-// --- HITUNG STATISTIK ---
-// 1. Jumlah Dosen
+// --- 1. HITUNG STATISTIK ---
 $q_dosen = mysqli_query($conn, "SELECT COUNT(*) as total FROM mstr_akun WHERE role='dosen'");
-$total_dosen = mysqli_fetch_assoc($q_dosen)['total'];
+$total_dosen = ($q_dosen) ? mysqli_fetch_assoc($q_dosen)['total'] : 0;
 
-// 2. Jumlah Mahasiswa
 $q_mhs = mysqli_query($conn, "SELECT COUNT(*) as total FROM mstr_akun WHERE role='mahasiswa'");
-$total_mhs = mysqli_fetch_assoc($q_mhs)['total'];
+$total_mhs = ($q_mhs) ? mysqli_fetch_assoc($q_mhs)['total'] : 0;
 
-// 3. Jumlah Skripsi Aktif
 $q_skripsi = mysqli_query($conn, "SELECT COUNT(*) as total FROM skripsi");
-$total_skripsi = mysqli_fetch_assoc($q_skripsi)['total'];
+$total_skripsi = ($q_skripsi) ? mysqli_fetch_assoc($q_skripsi)['total'] : 0;
 
-// 4. Data untuk Grafik (Jumlah Mhs per Prodi)
+// --- 2. DATA GRAFIK ---
 $labels = [];
 $data_grafik = [];
 $q_grafik = mysqli_query($conn, "SELECT prodi, COUNT(*) as jumlah FROM data_mahasiswa GROUP BY prodi");
-while($row = mysqli_fetch_assoc($q_grafik)) {
-    $labels[] = $row['prodi'];
-    $data_grafik[] = $row['jumlah'];
+if ($q_grafik) {
+    while($row = mysqli_fetch_assoc($q_grafik)) {
+        $labels[] = $row['prodi'];
+        $data_grafik[] = $row['jumlah'];
+    }
+}
+
+// --- 3. LOGIKA KALENDER ---
+$bulan_ini = date('m');
+$tahun_ini = date('Y');
+
+$jadwal_sql = "SELECT tanggal, ruang, status FROM ujian_skripsi 
+               WHERE MONTH(tanggal) = '$bulan_ini' AND YEAR(tanggal) = '$tahun_ini'";
+$q_jadwal = mysqli_query($conn, $jadwal_sql);
+
+$events = [];
+if ($q_jadwal) {
+    while ($row = mysqli_fetch_assoc($q_jadwal)) {
+        $events[$row['tanggal']][] = $row;
+    }
+}
+
+function build_calendar($month, $year, $events) {
+    $firstDayOfMonth = mktime(0, 0, 0, $month, 1, $year);
+    $numberDays = date('t', $firstDayOfMonth);
+    $dateComponents = getdate($firstDayOfMonth);
+    $dayOfWeek = $dateComponents['wday'];
+    $monthName = date('F', $firstDayOfMonth);
+    
+    $calendar = "<div class='calendar-header mb-3 fw-bold text-center'>$monthName $year</div>";
+    $calendar .= "<table class='table table-bordered table-sm text-center calendar-table'>";
+    $calendar .= "<thead class='table-light'><tr>";
+    $calendar .= "<th class='text-danger'>M</th><th>S</th><th>S</th><th>R</th><th>K</th><th>J</th><th>S</th>";
+    $calendar .= "</tr></thead><tbody><tr>";
+
+    if ($dayOfWeek > 0) { 
+        for ($k = 0; $k < $dayOfWeek; $k++) { $calendar .= "<td class='bg-light'></td>"; }
+    }
+    
+    $currentDay = 1;
+    $month = str_pad($month, 2, "0", STR_PAD_LEFT);
+    
+    while ($currentDay <= $numberDays) {
+        if ($dayOfWeek == 7) {
+            $dayOfWeek = 0;
+            $calendar .= "</tr><tr>";
+        }
+        
+        $currentDayRel = str_pad($currentDay, 2, "0", STR_PAD_LEFT);
+        $date = "$year-$month-$currentDayRel";
+        $today = date('Y-m-d');
+        
+        $hasEvent = isset($events[$date]);
+        $isToday = ($date == $today) ? "bg-primary text-white fw-bold" : "";
+        $eventDot = $hasEvent ? "<div class='event-dot'></div>" : "";
+        
+        // --- LOGIKA KLIK POPUP ---
+        $onclick = "";
+        $cursorStyle = "cursor:default;";
+        
+        if ($hasEvent) {
+            // Encode data jadwal ke JSON agar bisa dibaca Javascript
+            // Kita simpan list ruangan di dalam atribut data-jadwal
+            $jsonDetails = htmlspecialchars(json_encode($events[$date]), ENT_QUOTES, 'UTF-8');
+            $onclick = "onclick=\"showSchedule('$date', $jsonDetails)\"";
+            $cursorStyle = "cursor:pointer;"; // Ubah kursor jadi tangan
+        }
+
+        $calendar .= "<td class='$isToday position-relative' $onclick style='$cursorStyle height: 50px; vertical-align: middle;'>
+                        <span>$currentDay</span>
+                        $eventDot
+                      </td>";
+        
+        $currentDay++;
+        $dayOfWeek++;
+    }
+    
+    if ($dayOfWeek != 7) { 
+        $remainingDays = 7 - $dayOfWeek;
+        for ($l = 0; $l < $remainingDays; $l++) { $calendar .= "<td class='bg-light'></td>"; } 
+    }
+    
+    $calendar .= "</tr></tbody></table>";
+    return $calendar;
 }
 ?>
 
@@ -40,43 +118,23 @@ while($row = mysqli_fetch_assoc($q_grafik)) {
   <link rel="stylesheet" href="ccsprogres.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { background-color: #f4f6f9; overflow-x: hidden; }
+    /* --- LAYOUT --- */
+    body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background-color: #f4f6f9; margin: 0; }
+    .header { height: 70px; width: 100%; background: #fff; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; flex-shrink: 0; position: relative; z-index: 9999; }
+    .layout-wrapper { display: flex; flex: 1; overflow: hidden; width: 100%; }
+    .sidebar-area { background-color: #343a40; overflow-y: auto; height: 100%; flex-shrink: 0; }
+    .main-content { flex: 1; padding: 30px; overflow-y: auto; height: 100%; }
     
-    /* Header Fixed */
-    .header { 
-        position: fixed; top: 0; left: 0; width: 100%; height: 70px; 
-        background: #fff; z-index: 1050; padding: 0 25px; 
-        display: flex; align-items: center; justify-content: space-between; 
-        border-bottom: 1px solid #dee2e6; 
-    }
-    
-    /* Sidebar Fixed */
-    .sidebar { 
-        position: fixed; top: 70px; left: 0; width: 250px; height: calc(100vh - 70px); 
-        background: #343a40; color: white; overflow-y: auto; padding-top: 20px; z-index: 1040; 
-    }
-    
-    /* Sidebar Links */
-    .sidebar a { 
-        color: #cfd8dc; text-decoration: none; display: block; padding: 12px 25px; 
-        border-radius: 0 25px 25px 0; margin-bottom: 5px; transition: all 0.3s; 
-        border-left: 4px solid transparent; 
-    }
-    .sidebar a:hover { background-color: #495057; color: #fff; }
-    
-    /* Active Menu Style */
-    .sidebar a.active { 
-        background-color: #0d6efd; color: #ffffff; font-weight: bold; 
-        border-left: 4px solid #ffc107; padding-left: 30px; 
-    }
-
-    /* Main Content Offset */
-    .main-content { margin-top: 70px; margin-left: 250px; padding: 30px; }
-    
-    /* Style Kartu Statistik */
     .stat-card { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.2s; }
     .stat-card:hover { transform: translateY(-5px); }
     .icon-box { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    
+    /* Calendar Styles */
+    .calendar-table th { font-size: 12px; }
+    .calendar-table td { font-size: 14px; position: relative; }
+    .calendar-table td:hover { background-color: #e9ecef; } /* Efek hover */
+    .event-dot { width: 6px; height: 6px; background-color: #dc3545; border-radius: 50%; margin: 2px auto 0 auto; }
+    .legend-item { font-size: 11px; color: #6c757d; }
   </style>
 </head>
 <body>
@@ -91,103 +149,137 @@ while($row = mysqli_fetch_assoc($q_grafik)) {
         <div style="width: 40px; height: 40px; background: #e9ecef; border-radius: 50%; display: flex; justify-content: center; align-items: center;">👤</div>
     </div>
 </div>
-<?php 
-    $page = 'home_admin'; // Penanda halaman aktif
-    include "../templates/sidebar_admin.php"; 
-?>
 
-<div class="main-content">
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
-            <div class="card stat-card p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted mb-1">Jumlah Dosen</p>
-                        <h2 class="fw-bold m-0"><?= $total_dosen ?></h2>
-                    </div>
-                    <div class="icon-box bg-primary text-white">
-                        👨‍🏫
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card stat-card p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted mb-1">Jumlah Mahasiswa</p>
-                        <h2 class="fw-bold m-0"><?= $total_mhs ?></h2>
-                    </div>
-                    <div class="icon-box bg-info text-white">
-                        🎓
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card stat-card p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <p class="text-muted mb-1">Judul Skripsi Aktif</p>
-                        <h2 class="fw-bold m-0"><?= $total_skripsi ?></h2>
-                    </div>
-                    <div class="icon-box bg-success text-white">
-                        📚
-                    </div>
-                </div>
-            </div>
-        </div>
+<div class="layout-wrapper">
+    <div class="sidebar-area">
+        <?php $page = 'home_admin'; include "../templates/sidebar_admin.php"; ?>
     </div>
 
-    <div class="row">
-        <div class="col-md-8">
-            <div class="card stat-card p-4">
-                <h5 class="mb-4">Statistik Mahasiswa per Prodi</h5>
-                <canvas id="prodiChart"></canvas>
+    <div class="main-content">
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card stat-card p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><p class="text-muted mb-1">Jumlah Dosen</p><h2 class="fw-bold m-0"><?= $total_dosen ?></h2></div>
+                        <div class="icon-box bg-primary text-white">👨‍🏫</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stat-card p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><p class="text-muted mb-1">Jumlah Mahasiswa</p><h2 class="fw-bold m-0"><?= $total_mhs ?></h2></div>
+                        <div class="icon-box bg-info text-white">🎓</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stat-card p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div><p class="text-muted mb-1">Judul Skripsi Aktif</p><h2 class="fw-bold m-0"><?= $total_skripsi ?></h2></div>
+                        <div class="icon-box bg-success text-white">📚</div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card stat-card p-4">
-                <h5 class="mb-3">Status Sistem</h5>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        Server <span class="badge bg-success rounded-pill">Online</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        Database <span class="badge bg-success rounded-pill">Connected</span>
-                    </li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        WA Gateway <span class="badge bg-warning text-dark rounded-pill">Check</span>
-                    </li>
-                </ul>
+
+        <div class="row g-4">
+            <div class="col-md-8">
+                <div class="card stat-card p-4 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                         <h5 class="m-0">Statistik Prodi</h5>
+                    </div>
+                    <div style="flex: 1; min-height: 300px; position: relative;">
+                        <canvas id="prodiChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card stat-card p-4 h-100">
+                    <h5 class="mb-3">Jadwal Ujian Skripsi</h5>
+                    
+                    <?= build_calendar($bulan_ini, $tahun_ini, $events); ?>
+                    
+                    <div class="mt-3">
+                        <div class="d-flex align-items-center gap-2 legend-item">
+                            <div style="width: 10px; height: 10px; background:#0d6efd;"></div> Hari Ini
+                        </div>
+                        <div class="d-flex align-items-center gap-2 legend-item">
+                            <div style="width: 6px; height: 6px; background:#dc3545; border-radius:50%;"></div> Ada Jadwal (Klik tanggal untuk detail)
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </div> 
 </div>
 
+<div class="modal fade" id="scheduleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">📅 Jadwal Ujian: <span id="modalDate"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group" id="scheduleList">
+           </ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // Konfigurasi Grafik Chart.js
+  // Chart JS Config
   const ctx = document.getElementById('prodiChart').getContext('2d');
   new Chart(ctx, {
     type: 'bar',
     data: {
       labels: <?= json_encode($labels) ?>,
       datasets: [{
-        label: 'Jumlah Mahasiswa',
+        label: 'Mahasiswa',
         data: <?= json_encode($data_grafik) ?>,
         backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545'],
         borderWidth: 1
       }]
     },
-    options: {
-      responsive: true,
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
   });
+
+  // FUNCTION UNTUK MENAMPILKAN MODAL
+  function showSchedule(dateStr, eventsArray) {
+      // 1. Set Judul Tanggal (Format jadi Tgl-Bln-Thn)
+      const dateObj = new Date(dateStr);
+      const formattedDate = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('modalDate').innerText = formattedDate;
+
+      // 2. Buat List Ruangan HTML
+      let listHtml = '';
+      if (eventsArray.length > 0) {
+          eventsArray.forEach(item => {
+              listHtml += `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold text-primary">🚪 Ruang: ${item.ruang}</span><br>
+                        <small class="text-muted">Status: ${item.status}</small>
+                    </div>
+                </li>
+              `;
+          });
+      } else {
+          listHtml = '<li class="list-group-item text-center">Tidak ada jadwal detail.</li>';
+      }
+
+      // 3. Masukkan ke Modal dan Tampilkan
+      document.getElementById('scheduleList').innerHTML = listHtml;
+      const myModal = new bootstrap.Modal(document.getElementById('scheduleModal'));
+      myModal.show();
+  }
 </script>
 
 </body>
