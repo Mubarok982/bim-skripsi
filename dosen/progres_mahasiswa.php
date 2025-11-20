@@ -30,8 +30,7 @@ if (empty($npm_mhs)) {
     exit();
 }
 
-// [FIX QUERY] Mengambil data mahasiswa & skripsi
-// Kita gunakan LEFT JOIN skripsi berdasarkan ID (s.id_mahasiswa = dm.id)
+// Ambil Data Mahasiswa & Skripsi
 $q_mhs = "SELECT 
             m.nama, 
             dm.npm, 
@@ -40,24 +39,21 @@ $q_mhs = "SELECT
             s.pembimbing1, 
             s.pembimbing2 
           FROM mstr_akun m 
-          JOIN data_mahasiswa dm ON m.id = dm.id 
-          LEFT JOIN skripsi s ON s.id_mahasiswa = dm.id 
-          WHERE dm.npm = '$npm_mhs'";
+          JOIN data_mahasiswa dm ON m.id=dm.id 
+          LEFT JOIN skripsi s ON s.id_mahasiswa=dm.id 
+          WHERE dm.npm='$npm_mhs'";
 
 $res_mhs = mysqli_query($conn, $q_mhs);
 $mhs = mysqli_fetch_assoc($res_mhs);
 
-if (!$mhs) { 
-    echo "<div style='padding:20px;'>Mahasiswa dengan NPM <b>$npm_mhs</b> tidak ditemukan. <a href='home_dosen.php'>Kembali</a></div>"; 
-    exit(); 
-}
+if (!$mhs) { echo "Mahasiswa tidak ditemukan."; exit(); }
 
 // Tentukan Peran Dosen
 $peran = '';
 if ($mhs['pembimbing1'] == $id_dosen_login) $peran = 'dosen1';
 elseif ($mhs['pembimbing2'] == $id_dosen_login) $peran = 'dosen2';
 
-// --- 3. PROSES SIMPAN KOMENTAR & KIRIM WA ---
+// --- 3. PROSES SIMPAN KOMENTAR (POST) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // A. Handle Chat Bebas
@@ -85,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // B. Handle Nilai & Komentar
+    // B. Handle Nilai & Komentar (BAGIAN INI DIPERBAIKI)
     elseif (isset($_POST['action']) && $_POST['action'] == 'nilai') {
         if (empty($peran)) {
             echo "<script>alert('Anda bukan pembimbing mahasiswa ini! (Cek data skripsi)');</script>";
@@ -95,23 +91,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $status_nilai = $_POST['status']; 
             $bab_ke     = $_POST['bab_ke']; 
 
+            // Tentukan Nama Kolom
             $kolom_komentar = ($peran == 'dosen1') ? 'komentar_dosen1' : 'komentar_dosen2';
             $kolom_nilai    = ($peran == 'dosen1') ? 'nilai_dosen1' : 'nilai_dosen2';
             $kolom_progres  = ($peran == 'dosen1') ? 'progres_dosen1' : 'progres_dosen2';
+            $kolom_waktu    = ($peran == 'dosen1') ? 'waktu_balas_d1' : 'waktu_balas_d2'; // <--- INI KOLOM WAKTU
             
             $poin = ($status_nilai == 'ACC') ? 50 : 0; 
 
+            // [FIX QUERY] Tambahkan NOW() untuk mencatat waktu
             $update = "UPDATE progres_skripsi SET 
                         $kolom_komentar = '$komentar',
                         $kolom_nilai = '$status_nilai',
-                        $kolom_progres = $poin
+                        $kolom_progres = $poin,
+                        $kolom_waktu = NOW() 
                        WHERE id = '$id_progres'";
             
             if (mysqli_query($conn, $update)) {
                 
-                // --- FORMAT PESAN WA ---
+                // Kirim Notifikasi WA
                 $no_hp = $mhs['no_hp'];
-                
                 if (!empty($no_hp)) {
                     $no_hp = preg_replace('/[^0-9]/', '', $no_hp);
                     if (substr($no_hp, 0, 1) == '0') $no_hp = '62' . substr($no_hp, 1);
@@ -119,13 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $nama_dosen_pengirim = $data_dosen['nama'];
                     $peran_text = ($peran == 'dosen1') ? "(Pembimbing 1)" : "(Pembimbing 2)";
                     $judul_skripsi = $mhs['judul_skripsi'] ?? 'Judul Belum Ada';
+                    $status_text = ($status_nilai == 'ACC') ? "ACC (Disetujui) ✅" : "Revisi 📝";
 
                     $pesan = "🔔 *Komentar Progres Skripsi*\n"
                            . "👨‍🎓 Nama: {$mhs['nama']}\n"
                            . "📘 Judul: {$judul_skripsi}\n"
                            . "📄 BAB $bab_ke\n"
                            . "📝 $nama_dosen_pengirim $peran_text telah memberikan komentar.\n"
-                           . "Silakan cek sistem untuk melihat detailnya.\n\n"
+                           . "💬 *$komentar*\n"
+                           . "📊 Status: $status_text\n\n"
+                           . "Silakan cek sistem untuk melihat detailnya.\n"
                            . "> Sent via fonnte.com";
                     
                     kirimWaFonnte($no_hp, $pesan);
@@ -162,10 +164,10 @@ if ($res_prog) {
     <link rel="stylesheet" href="../admin/ccsprogres.css">
     <style>
         body { background-color: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; }
-        .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: #ffffff; border-bottom: 1px solid #dee2e6; z-index: 1050; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; }
+        .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: #ffffff; border-bottom: 1px solid #dee2e6; z-index: 1050; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .sidebar { position: fixed; top: 70px; left: 0; width: 250px; height: calc(100vh - 70px); background: #343a40; color: white; overflow-y: auto; padding-top: 20px; z-index: 1040; }
         .sidebar a { color: #cfd8dc; text-decoration: none; display: block; padding: 12px 25px; border-radius: 0 25px 25px 0; margin-bottom: 5px; transition: all 0.3s; border-left: 4px solid transparent; }
-        .sidebar a:hover, .sidebar a.active { background: #495057; color: #fff; padding-left: 30px; }
+        .sidebar a:hover, .sidebar a.active { background-color: #495057; color: #fff; padding-left: 30px; }
         .main-content { margin-top: 70px; margin-left: 250px; padding: 30px; width: auto; }
         .form-komentar { background-color: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffeeba; }
         .modal-header { background-color: #0d6efd; color: white; }
@@ -296,7 +298,6 @@ if ($res_prog) {
                                             <div class="mb-2">
                                                 <label class="fw-bold small">Komentar / Revisi:</label>
                                                 <?php 
-                                                    // [FIX VARIABLE]
                                                     $komentar_lama = ($peran == 'dosen1') ? $row['komentar_dosen1'] : $row['komentar_dosen2'];
                                                     $status_lama = ($peran == 'dosen1') ? $row['nilai_dosen1'] : $row['nilai_dosen2'];
                                                 ?>

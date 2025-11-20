@@ -102,7 +102,7 @@ if (!$result) {
                 <p class="text-muted mb-0">Pantau kecepatan respon dosen dalam membimbing mahasiswa.</p>
             </div>
             <div>
-                <a href="home_admin.php" class="btn btn-secondary me-2">← Kembali</a>
+                <a href="mahasiswa_skripsi.php" class="btn btn-secondary me-2">← Kembali</a>
                 <a href="export_csv.php" class="btn btn-success">📥 Download CSV</a>
             </div>
         </div>
