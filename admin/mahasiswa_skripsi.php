@@ -7,7 +7,7 @@ if (!isset($_SESSION['admin_username'])) {
     exit();
 }
 
-$nama_admin = $_SESSION['nama_admin'] ?? 'Admin';
+$nama_admin = $_SESSION['admin_username'] ?? 'Admin';
 
 // --- 1. DAFTAR PRODI MANUAL ---
 $list_prodi = [
@@ -58,11 +58,13 @@ function hitungProgres($conn, $npm) {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Admin</title>
+  <title>Monitoring Skripsi</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="ccsprogres.css">
   <style>
+    /* --- LAYOUT CONSISTENCY --- */
     body { background-color: #f4f6f9; margin: 0; padding: 0; overflow-x: hidden; }
     .header { position: fixed; top: 0; left: 0; width: 100%; height: 70px; background-color: #ffffff; border-bottom: 1px solid #dee2e6; z-index: 1050; display: flex; align-items: center; justify-content: space-between; padding: 0 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     .sidebar { position: fixed; top: 70px; left: 0; width: 250px; height: calc(100vh - 70px); background-color: #343a40; color: white; overflow-y: auto; padding-top: 20px; z-index: 1040; }
@@ -71,6 +73,13 @@ function hitungProgres($conn, $npm) {
     .sidebar a.active { background-color: #0d6efd; color: #ffffff; font-weight: bold; border-left: 4px solid #ffc107; padding-left: 30px; }
     .main-content { margin-top: 70px; margin-left: 250px; padding: 30px; width: auto; }
     .table-skripsi th, .table-skripsi td { text-align: center; vertical-align: middle; word-wrap: break-word; }
+
+    /* Custom Styling untuk Tombol */
+    .btn-action-group {
+        display: flex;
+        justify-content: end;
+        gap: 8px; /* Jarak antar tombol */
+    }
   </style>
 </head>
 <body>
@@ -90,7 +99,7 @@ function hitungProgres($conn, $npm) {
 </div>
 
 <?php 
-    $page = 'mahasiswa_skripsi'; // Penanda halaman aktif
+    $page = 'jadwal'; // Penanda halaman aktif
     include "../templates/sidebar_admin.php";
 ?>
 
@@ -114,9 +123,12 @@ function hitungProgres($conn, $npm) {
           <div class="col-md-4">
               <input type="text" id="search" class="form-control" placeholder="🔍 Cari Mahasiswa...">
           </div>
-          <div class="col-md-4 text-end">
-              <a href="analisa_kinerja.php" class="btn btn-primary w-100">
-                  📊 Analisis Kinerja Dosen
+          <div class="col-md-4 d-flex justify-content-end gap-2">
+              <a href="tambah_mahasiswa_skripsi.php" class="btn btn-success" style="flex-grow: 1;">
+                  <i class="fas fa-plus me-1"></i> Tambah Skripsi
+              </a>
+              <a href="analisa_kinerja.php" class="btn btn-primary" style="flex-grow: 1;">
+                  <i class="fas fa-chart-bar me-1"></i> Analisis Kinerja
               </a>
           </div>
       </div>
@@ -159,8 +171,8 @@ function hitungProgres($conn, $npm) {
                         <?php $progres = hitungProgres($conn, $mhs['npm']); ?>
                         <td>
                           <div class="d-grid gap-1">
-                              <a href="lihat_progres_admin.php?npm=<?= $mhs['npm'] ?>" class="btn btn-sm btn-primary">📄 Progres</a>
-                              <button class="btn btn-sm btn-info text-white" onclick="toggleProgres('bar_<?= $mhs['id'] ?>')">📊 Grafik</button>
+                              <a href="lihat_progres_admin.php?npm=<?= $mhs['npm'] ?>" class="btn btn-sm btn-primary"><i class="fas fa-tasks me-1"></i> Progres</a>
+                              <button class="btn btn-sm btn-info text-white" onclick="toggleProgres('bar_<?= $mhs['id'] ?>')"><i class="fas fa-chart-line me-1"></i> Grafik</button>
                           </div>
                         </td>
                       </tr>
@@ -185,7 +197,7 @@ function hitungProgres($conn, $npm) {
 
         <?php if (!$ada_data): ?>
             <div class="alert alert-info text-center py-5">
-                <h4>📭 Belum ada data mahasiswa</h4>
+                <h4><i class="fas fa-box-open me-2"></i> Belum ada data mahasiswa</h4>
             </div>
         <?php endif; ?>
 

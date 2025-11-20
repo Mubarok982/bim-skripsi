@@ -14,9 +14,6 @@ $p = isset($page) ? $page : '';
         <i class="fas fa-th-large fa-fw me-2"></i> Dashboard
     </a>
     
-    <a href="mahasiswa_skripsi.php" class="<?= $p == 'jadwal' ? 'active' : '' ?>">
-        <i class="fas fa-calendar-alt fa-fw me-2"></i> Jadwal
-    </a>
     
     <h6 class="text-white text-uppercase ms-3 mb-2 mt-4" style="font-size: 11px; opacity: 0.8;">KELOLA AKUN</h6>
     
@@ -34,11 +31,11 @@ $p = isset($page) ? $page : '';
     
     <h6 class="text-white text-uppercase ms-3 mb-2 mt-4" style="font-size: 11px; opacity: 0.8;">PENGAJUAN</h6>
     
-    <a href="tambah_mahasiswa_skripsi.php" class="<?= $p == 'tugas_akhir' ? 'active' : '' ?>">
+    <a href="mahasiswa_skripsi.php" class="<?= $p == 'tugas_akhir' ? 'active' : '' ?>">
         <i class="fas fa-file-alt fa-fw me-2"></i> Tugas Akhir
     </a>
     
-    <a href="#" class="<?= $p == 'status_semua' ? 'active' : '' ?>">
+    <a href="syarat_proposal.php" class="<?= $p == 'syarat_proposal' ? 'active' : '' ?>">
         <i class="fas fa-list-alt fa-fw me-2"></i> Status TA Semua
     </a>
     

@@ -8,7 +8,7 @@ if (!isset($_SESSION['admin_username'])) {
 }
 
 $nama_admin = $_SESSION['admin_username'] ?? 'Admin';
-$page = 'tugas_akhir'; // Penanda halaman aktif
+$page = 'tugas_akhir'; // Penanda halaman aktif di sidebar
 
 // --- 1. AMBIL DAFTAR DOSEN (untuk dropdown Pembimbing) ---
 $query_dosen = "SELECT d.id, m.nama 
@@ -78,8 +78,8 @@ if (isset($_POST['simpan'])) {
   <link rel="stylesheet" href="ccsprogres.css"> 
   
   <style>
-    /* --- LAYOUT FIXED POSITION (ACUAN KONSISTENSI DASHBOARD) --- */
-    body { background-color: #f8f9fe; margin: 0; padding: 0; overflow-x: hidden; }
+    /* --- LAYOUT FIXED POSITION (KONSISTENSI DASHBOARD) --- */
+    body { background-color: #f8f9fe; margin: 0; padding: 0; overflow-x: hidden; font-family: 'Open Sans', sans-serif; }
 
     .header { /* Header Fixed */
         position: fixed; top: 0; left: 0; width: 100%; height: 70px; 
@@ -102,12 +102,36 @@ if (isset($_POST['simpan'])) {
         background-color: #f8f9fe;
     }
     
-    /* --- STYLING FORM --- */
-    .card-custom { border: 0; box-shadow: 0 0 1.5rem 0 rgba(136, 152, 170, .1); border-radius: .75rem; background: #fff; }
-    .card-header { background-color: #fff; border-bottom: 1px solid #e9ecef; padding: 1.5rem; border-radius: .75rem .75rem 0 0; }
+    /* --- STYLING FORM (FINAL CLEAN UP) --- */
+    .card-custom { 
+        border: 0; 
+        box-shadow: 0 0 1.5rem 0 rgba(136, 152, 170, .1); 
+        border-radius: .75rem; 
+        background: #fff; 
+    }
+    .card-header { 
+        background-color: #fff; 
+        border-bottom: 1px solid #e9ecef; 
+        padding: 1.5rem; 
+        border-radius: .75rem .75rem 0 0; 
+    }
     
+    /* Label dan Input yang lebih terpisah dan jelas */
+    .form-control, .form-select {
+        border-radius: .5rem;
+        border: 1px solid #dee2e6;
+        padding: .65rem .75rem;
+        font-size: .9rem;
+    }
+    
+    .form-label {
+        font-weight: 600; 
+        color: #525f7f;
+        margin-bottom: .25rem;
+    }
+
     /* Tombol */
-    .btn-primary { background-color: #5e72e4; border-color: #5e72e4; color: white; }
+    .btn-primary { background-color: #5e72e4; border-color: #5e72e4; color: white; transition: all 0.2s; }
     .btn-primary:hover { background-color: #324cdd; border-color: #324cdd; }
   </style>
 </head>
