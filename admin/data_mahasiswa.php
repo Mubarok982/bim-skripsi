@@ -6,7 +6,12 @@ if (!isset($_SESSION['admin_username'])) {
     header("Location: ../auth/login.php");
     exit();
 }
-
+?>
+<?php
+    $page = 'data_mahasiswa'; 
+    include "../templates/sidebar_admin.php"; 
+?>
+<?php
 $nama_admin = $_SESSION['nama_admin'] ?? 'Admin';
 
 // --- QUERY KOREKSI FINAL ---
@@ -73,19 +78,6 @@ if (!$result) {
         👤
     </div>
   </div>
-</div>
-
-<div class="sidebar">
-    <h6 class="text-uppercase text-secondary ms-3 mb-3" style="font-size: 12px;">Menu Utama</h6>
-    <a href="home_admin.php">Dashboard</a>
-    <a href="laporan_sidang.php">Laporan Sidang</a>
-    <a href="data_mahasiswa.php" class="active" style="background-color: #0d6efd;">Data Mahasiswa</a>
-    <a href="data_dosen.php">Data Dosen</a>
-    <h6 class="text-uppercase text-secondary ms-3 mb-3 mt-4" style="font-size: 12px;">Manajemen Akun</h6>
-    <a href="akun_mahasiswa.php">Akun Mahasiswa</a>
-    <a href="akun_dosen.php">Akun Dosen</a>
-    <a href="mahasiswa_skripsi.php">Data Skripsi</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a> 
 </div>
 
 <div class="main-content">

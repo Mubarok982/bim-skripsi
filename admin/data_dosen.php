@@ -36,7 +36,29 @@ if (!$dosen) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="ccsprogres.css">
     <style>
+        /* --- CSS TAMBAHAN UNTUK LAYOUT SAMPING --- */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+
+        .layout-wrapper {
+            display: flex; /* Kunci agar sidebar & konten sejajar */
+            flex: 1;
+            width: 100%;
+        }
+
+        .main-content {
+            flex: 1; /* Mengambil sisa ruang di sebelah sidebar */
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
         .search-box { width: 300px; margin-bottom: 20px; }
+        
+        .header { z-index: 1000; position: relative; }
     </style>
 </head>
 <body>
@@ -55,24 +77,14 @@ if (!$dosen) {
     </div>
 </div>
 
-<div class="container-fluid">
-    <div class="sidebar">
-    <h6 class="text-uppercase text-secondary ms-3 mb-3" style="font-size: 12px;">Menu Utama</h6>
-    <a href="home_admin.php">Dashboard</a>
-    <a href="laporan_sidang.php">Laporan Sidang</a>
-    <a href="data_mahasiswa.php">Data Mahasiswa</a>
-    <a href="data_dosen.php">Data Dosen</a>
+<div class="layout-wrapper">
     
-    <h6 class="text-uppercase text-secondary ms-3 mb-3 mt-4" style="font-size: 12px;">Manajemen Akun</h6>
-    <a href="akun_dosen.php" class="active" style="background-color: #0d6efd;">Akun Dosen</a>
-    <a href="mahasiswa_skripsi.php">Data Skripsi</a>
-    
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a> 
-    
-    <div class="text-center mt-5 text-muted" style="font-size: 11px;">
-      &copy; 2025 UNIMMA
+    <div class="sidebar-area">
+        <?php 
+            $page = 'data_dosen'; // Penanda halaman aktif
+            include "../templates/sidebar_admin.php";
+        ?>
     </div>
-</div>
 
     <div class="main-content">
         <div class="card-box w-100 text-start">
@@ -109,10 +121,7 @@ if (!$dosen) {
             </div>
 
         </div>
-    </div>
-</div>
-
-<script>
+    </div> </div> <script>
     const searchInput = document.getElementById("search");
     searchInput.addEventListener("keyup", function () {
         const filter = this.value.toLowerCase();

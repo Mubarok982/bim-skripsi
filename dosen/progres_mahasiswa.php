@@ -195,13 +195,10 @@ if ($res_prog) {
         </div>
     </div>
 </div>
-
-<div class="sidebar">
-    <h6 class="text-uppercase text-secondary ms-3 mb-3" style="font-size: 12px;">Menu Dosen</h6>
-    <a href="home_dosen.php">Dashboard</a>
-    <a href="biodata_dosen.php">Profil Saya</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a>
-</div>
+<?php
+    $page = 'progres_mahasiswa';
+    include "../templates/sidebar_dosen.php";
+?>
 
 <div class="main-content">
     <div class="card shadow-sm border-0 p-4 mb-4">

@@ -7,7 +7,12 @@ if (!isset($_SESSION['nip'])) {
     header("Location: ../auth/login.php");
     exit();
 }
-
+?>
+<?php 
+    $page = 'dashboard'; 
+    include "../templates/sidebar_dosen.php"; 
+?>
+<?php
 $nip_login = $_SESSION['nip'];
 
 // --- 1. AMBIL DATA DOSEN ---
@@ -112,13 +117,6 @@ function hitungProgres($conn, $npm) {
   </div>
 </div>
 
-<div class="sidebar">
-    <h4 class="text-center mb-4">Panel Dosen</h4>
-    <a href="home_dosen.php" class="active" style="background-color: #0d6efd;">Dashboard</a>
-    <a href="biodata_dosen.php">Profil Saya</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a>
-    <div class="text-center mt-5 text-muted" style="font-size: 11px;">&copy; 2025 UNIMMA</div>
-</div>
 
 <div class="main-content">
     <div class="card p-4 shadow-sm border-0" style="border-radius: 12px;">

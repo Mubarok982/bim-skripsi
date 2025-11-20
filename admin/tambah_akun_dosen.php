@@ -6,6 +6,8 @@ if (!isset($_SESSION['admin_username'])) {
     header("Location: login_admin.php");
     exit();
 }
+$page = 'tambah_akun_dosen'; // Penanda halaman aktif
+include "../templates/sidebar_admin.php";
 
 function generatePassword($length = 6) {
     $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -57,15 +59,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 <!-- LAYOUT -->
 <div class="container-fluid">
-        <div class="sidebar">
-            <h4 class="text-center">Panel Admin</h4>
-            <a href="home_admin.php">Dashboard</a>
-            <a href="data_mahasiswa.php">Data Mahasiswa</a>
-            <a href="data_dosen.php">Data Dosen</a>
-            <a href="akun_mahasiswa.php">Akun Mahasiswa</a>
-            <a href="akun_dosen.php" class="active">Akun Dosen</a>
-            <a href="logout.php">Logout</a>
-        </div>
+
 
         <!-- MAIN CONTENT -->
         <div class="col-md-10 main-content">

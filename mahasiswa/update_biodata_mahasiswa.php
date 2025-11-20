@@ -183,12 +183,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     </div>
 </div>
 
-<div class="sidebar">
-    <h4 class="text-center mb-4">Panel Mahasiswa</h4>
-    <a href="home_mahasiswa.php">Dashboard</a>
-    <a href="progres_skripsi.php">Upload Progres</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a>
-</div>
+<?php
+    $page = 'biodata_mahasiswa';
+    include "../templates/sidebar_mahasiswa.php";
+?>
 
 <div class="main-content">
     <div class="container">

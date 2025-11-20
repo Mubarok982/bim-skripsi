@@ -8,6 +8,9 @@ if (!isset($_SESSION['npm'])) {
     exit();
 }
 
+$page = 'progres_skripsi';
+include "../templates/sidebar_mahasiswa.php";
+
 // Ini adalah Username Login (Session)
 $session_user = $_SESSION['npm'];
 
@@ -90,12 +93,6 @@ function getJudulBab($bab) {
     </div>
 </div>
 
-<div class="sidebar">
-    <h4 class="text-center mb-4">Panel Mahasiswa</h4>
-    <a href="home_mahasiswa.php">Dashboard</a>
-    <a href="progres_skripsi.php" class="active">Upload Progres</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a>
-</div>
 
 
 <div class="main-content">

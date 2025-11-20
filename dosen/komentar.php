@@ -3,7 +3,9 @@ session_start();
 include "db.php";
 include "../config_fonnte.php";
 include "../kirim_fonnte.php";
-
+$page = 'komentar';
+include "../templates/sidebar_dosen.php";
+// Cek Login Dosen
 if (!isset($_SESSION['nip'])) {
     header("Location: login_dosen.php");
     exit();
@@ -168,12 +170,7 @@ for ($bab = 1; $bab <= 5; $bab++) {
 </div>
 
 <div class="container-fluid">
-    <div class="sidebar">
-        <h4 class="text-center">Panel Dosen</h4>
-        <a href="home_dosen.php">Dashboard</a>
-        <a href="biodata_dosen.php">Biodata</a>
-        <a href="logout.php">Logout</a>
-    </div>
+
 
     <div class="col-md-10 main-content">
         <div class="card-box text-start">

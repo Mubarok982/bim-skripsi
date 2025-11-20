@@ -40,17 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <div class="title"><h1>WEBSITE MONITORING SKRIPSI UNIMMA</h1></div>
   <div class="profile"><a href="data_mahasiswa.php">🔙</a></div>
 </div>
-
 <div class="container-fluid">
-  <div class="sidebar">
-  <h4 class="text-center">Panel Admin</h4>
-  <a href="home_admin.php">Dashboard</a>
-  <a href="data_mahasiswa.php">Data Mahasiswa</a>
-  <a href="data_dosen.php">Data Dosen</a>
-  <a href="akun_mahasiswa.php">Akun Mahasiswa</a>
-  <a href="akun_dosen.php">Akun Dosen</a>
-  <a href="logout.php">Logout</a>
-</div>
+<?php 
+    $page = 'tambah_mahasiswa'; // Penanda halaman aktif
+    include "../templates/sidebar_admin.php";
+?>
 
   <div class="col-md-10 main-content">
     <div class="card-box text-start">

@@ -26,6 +26,36 @@ if (!$akun) {
     <title>Akun Dosen</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="ccsprogres.css">
+    <style>
+        /* --- CSS UNTUK LAYOUT SAMPING (FLEXBOX) --- */
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+
+        /* Wrapper utama agar Sidebar dan Konten sejajar ke samping */
+        .layout-wrapper {
+            display: flex; 
+            flex: 1;
+            width: 100%;
+        }
+
+        /* Area Sidebar (lebarnya diatur dari file sidebar.php, ini wadahnya saja) */
+        .sidebar-area {
+            flex-shrink: 0;
+        }
+
+        /* Konten Utama mengisi sisa ruang */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .header { z-index: 1000; position: relative; }
+    </style>
 </head>
 <body>
 
@@ -43,21 +73,15 @@ if (!$akun) {
     </div>
 </div>
 
-<div class="container-fluid">
-   
- <div class="sidebar">
-    <h6 class="text-uppercase text-secondary ms-3 mb-3" style="font-size: 12px;">Menu Utama</h6>
-    <a href="home_admin.php">Dashboard</a>
-    <a href="laporan_sidang.php">Laporan Sidang</a>
-    <a href="data_mahasiswa.php">Data Mahasiswa</a>
-    <a href="data_dosen.php" class="active" style="background-color: #0d6efd;">Data Dosen</a>
-    <h6 class="text-uppercase text-secondary ms-3 mb-3 mt-4" style="font-size: 12px;">Manajemen Akun</h6>
-    <a href="akun_mahasiswa.php">Akun Mahasiswa</a>
-    <a href="akun_dosen.php">Akun Dosen</a>
-    <a href="mahasiswa_skripsi.php">Data Skripsi</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a> 
-</div>
+<div class="layout-wrapper">
     
+    <div class="sidebar-area">
+        <?php
+            $page = 'akun_dosen'; // Penanda halaman aktif
+            include "../templates/sidebar_admin.php"; 
+        ?>
+    </div>
+
     <div class="main-content">
       <div class="card-box">
         <h3>Daftar Akun Dosen</h3>
@@ -95,10 +119,5 @@ if (!$akun) {
           </table>
         </div>
       </div>
-    </div>
-
-  </div>
-</div>
-
-</body>
+    </div> </div> </body>
 </html>

@@ -72,15 +72,10 @@ $dosenList = mysqli_query($conn, "SELECT id, nama FROM mstr_akun WHERE role='dos
     <div style="width: 40px; height: 40px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center;">👤</div>
   </div>
 </div>
-
-<div class="sidebar">
-    <h6 class="text-uppercase text-secondary ms-3 mb-3" style="font-size: 12px;">Menu Utama</h6>
-    <a href="home_admin.php">Dashboard</a>
-    <a href="data_mahasiswa.php" class="active" style="background-color: #0d6efd;">Data Mahasiswa</a>
-    <a href="data_dosen.php">Data Dosen</a>
-    <a href="mahasiswa_skripsi.php">Data Skripsi</a>
-    <a href="../auth/login.php?action=logout" class="text-danger mt-4 border-top pt-3">Logout</a> 
-</div>
+<?php 
+    $page = 'edit_mahasiswa'; // Penanda halaman aktif
+    include "../templates/sidebar_admin.php"; 
+?>
 
 <div class="main-content">
     <div class="card p-4 shadow-sm border-0" style="border-radius: 12px;">

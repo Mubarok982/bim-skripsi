@@ -33,13 +33,10 @@ if (!isset($_SESSION['admin_username'])) {
 
 <div class="container-fluid">
   
-  <div class="sidebar">
-    <h4 class="text-center">Admin Panel</h4>
-    <a href="home_admin.php">Dashboard</a>
-    <a href="data_mahasiswa.php">Data Mahasiswa</a>
-    <a href="data_dosen.php" class="active">Data Dosen</a>
-    <a href="logout.php">Logout</a>
-  </div>
+  <?php 
+    $page = 'tambah_dosen'; // Penanda halaman aktif
+    include "../templates/sidebar_admin.php";
+  ?>
 
   <div class="main-content">
     <div class="card-box text-start">

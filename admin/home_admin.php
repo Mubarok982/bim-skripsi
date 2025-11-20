@@ -91,28 +91,10 @@ while($row = mysqli_fetch_assoc($q_grafik)) {
         <div style="width: 40px; height: 40px; background: #e9ecef; border-radius: 50%; display: flex; justify-content: center; align-items: center;">👤</div>
     </div>
 </div>
-
-<div class="sidebar">
-    <h6 class="text-uppercase text-secondary ms-3 mb-3" style="font-size: 12px;">Menu Utama</h6>
-    
-    <a href="home_admin.php" class="active">Dashboard</a>
-    
-    <a href="mahasiswa_skripsi.php">Monitoring Skripsi</a>
-    <a href="laporan_sidang.php">Laporan Sidang</a>
-    <a href="data_mahasiswa.php">Data Mahasiswa</a>
-    <a href="data_dosen.php">Data Dosen</a>
-    
-    <h6 class="text-uppercase text-secondary ms-3 mb-3 mt-4" style="font-size: 12px;">Manajemen Akun</h6>
-    <a href="akun_mahasiswa.php">Akun Mahasiswa</a>
-    <a href="akun_dosen.php">Akun Dosen</a>
-    <a href="analisa_kinerja.php">Analisa Kinerja</a>
-    
-    <a href="../auth/logout.php" class="text-danger mt-4 border-top pt-3">Logout</a> 
-    
-    <div class="text-center mt-5 text-muted" style="font-size: 11px;">
-        &copy; 2025 UNIMMA<br>By Ikhbal Khasodiq
-    </div>
-</div>
+<?php 
+    $page = 'home_admin'; // Penanda halaman aktif
+    include "../templates/sidebar_admin.php"; 
+?>
 
 <div class="main-content">
     <div class="row g-4 mb-4">
